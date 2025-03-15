@@ -14,7 +14,11 @@ app.MapGet("/profile", (HttpContext ctx) =>
 {
     // extracting information from cookie
     var authCookie =  ctx.Request.Headers.Cookie.FirstOrDefault(c => c.StartsWith("auth="));
-    var username = authCookie?.Split("=")[1].Split(":")[1];
-    return $"Welcome {username}";
+    var payload = authCookie?.Split("=").Last();
+    var parts = payload?.Split(":");
+    var key = parts[0];
+    var value = parts[1];
+
+    return $"Welcome {value}";
 });
 app.Run();
