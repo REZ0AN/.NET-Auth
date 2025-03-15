@@ -1,6 +1,5 @@
 using Auth.middlewares;
 using Auth.services;
-using Microsoft.AspNetCore.DataProtection;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDataProtection();
