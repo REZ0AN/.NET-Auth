@@ -10,8 +10,11 @@ app.MapGet("/login", (HttpContext ctx) =>
     return "Login Page";
 });
 
-app.MapGet("/profile", () =>
+app.MapGet("/profile", (HttpContext ctx) =>
 {
-    return "Profile Page";
+    // extracting information from cookie
+    var authCookie =  ctx.Request.Headers.Cookie.FirstOrDefault(c => c.StartsWith("auth="));
+    var username = authCookie?.Split("=")[1].Split(":")[1];
+    return $"Welcome {username}";
 });
 app.Run();
