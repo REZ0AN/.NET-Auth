@@ -1,3 +1,4 @@
+using Auth.middlewares;
 using Auth.services;
 using Microsoft.AspNetCore.DataProtection;
 var builder = WebApplication.CreateBuilder(args);
@@ -15,6 +16,8 @@ builder.Services.AddScoped<AuthService>();
 
 var app = builder.Build();
 
+// Add the middleware to the pipeline
+app.UseMiddleware<AuthMiddleware>();
 
 app.MapGet("/login", (AuthService auth) =>
 
@@ -25,26 +28,10 @@ app.MapGet("/login", (AuthService auth) =>
     return "Login Page";
 });
 
-app.MapGet("/profile", (HttpContext ctx, IDataProtectionProvider idp) =>
-{   
+app.MapGet("/profile", (HttpContext ctx) =>
+{       
     // recognizing the authentication session
-    // create protector <name> - auth (scenario/usecase)
-    var protector = idp.CreateProtector("auth");
-
-    // extracting information from cookie
-    var authCookie =  ctx.Request.Headers.Cookie.FirstOrDefault(c => c.StartsWith("auth="));
-    
-    // get the protected payload
-    var protectedPayload = authCookie?.Split("=").Last();
-
-    // unprotect the protected payload
-    var payload = protector.Unprotect(protectedPayload);
-
-    // split the payload to get the key and value
-    var parts = payload?.Split(":");
-    var key = parts[0];
-    var value = parts[1];
-
-    return $"Welcome {value}";
+    var username = ctx.User?.FindFirst("user")?.Value ?? "Anonymous";
+    return $"Welcome {username}";
 });
 app.Run();
