@@ -1,72 +1,102 @@
-
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add the authentication services 
-// provide the authentication scheme name
-// and the cookie name
-// this is provided by Microsoft.AspNetCore.Authentication.Cookies
-builder.Services.AddAuthentication("cookie-auth")
-    .AddCookie("cookie-auth", options =>
-    {
-        options.Cookie.Name = "auth";
-    });
+var auth_scheme1 = "cookie-auth1";
+var auth_scheme2 = "cookie-auth2";
 
+// Set up both authentication schemes without a default
+builder.Services.AddAuthentication()
+    .AddCookie(auth_scheme1)
+    .AddCookie(auth_scheme2);
 
 var app = builder.Build();
 
-// Add the authentication middleware
-// this middleware will recognize the authentication session
-// and populate the HttpContext.User property
-// provided by Microsoft.AspNetCore.Authentication
 app.UseAuthentication();
 
-app.MapGet("/admin-only", (HttpContext ctx) =>
+app.MapGet("/login/{user?}/{role?}", async (HttpContext ctx, string? user, string? role) =>
 {
-    // check if the user is authenticated
-    if (!ctx.User.Identities.Any(identity => identity.AuthenticationType == "cookie-auth"))
+    string userName = user ?? "Anonymous";
+    string roleN = role ?? "user";
+    string scheme = roleN == "master" ? auth_scheme2 : auth_scheme1;
+
+    var claims = new List<Claim>
     {
-        ctx.Response.StatusCode = 401;
-        return "You are not authenticated";
+        new Claim(ClaimTypes.Name, userName),
+        new Claim(ClaimTypes.Role, roleN)
+    };
+
+    var identity = new ClaimsIdentity(claims, scheme);
+    Console.WriteLine($"Signing in: User={userName}, Role={roleN}, Scheme={scheme}");
+    await ctx.SignInAsync(scheme, new ClaimsPrincipal(identity));
+    return $"Login Page - Logged in as {userName} with role {roleN} using scheme {scheme}";
+});
+
+app.MapGet("/profile", async (HttpContext ctx) =>
+{
+    // Explicitly authenticate using both schemes
+    var result1 = await ctx.AuthenticateAsync(auth_scheme1);
+    var result2 = await ctx.AuthenticateAsync(auth_scheme2);
+    
+    string userInfo = "Not authenticated";
+    
+    if (result1.Succeeded)
+    {
+        userInfo = $"Auth1: User: {result1.Principal.Identity.Name}, Role: {result1.Principal.FindFirst(ClaimTypes.Role)?.Value}";
     }
-    // check if the user has the role of Admin
-    if (!ctx.User?.FindFirst("role")?.Value.Equals("Admin") ?? true)
+    
+    if (result2.Succeeded)
+    {
+        userInfo += $"\nAuth2: User: {result2.Principal.Identity.Name}, Role: {result2.Principal.FindFirst(ClaimTypes.Role)?.Value}";
+    }
+    
+    return userInfo;
+});
+
+app.MapGet("/admin", async (HttpContext ctx) =>
+{
+    var result = await ctx.AuthenticateAsync(auth_scheme1);
+    
+    if (!result.Succeeded)
+    {   
+        ctx.Response.StatusCode = 401;
+        return "Unauthorized";
+    }
+    
+    if (!result.Principal.IsInRole("admin"))
     {
         ctx.Response.StatusCode = 403;
-        return "You are not authorized";
+        return "Forbidden";
     }
+    
     return "Admin Page";
 });
 
-app.MapGet("/login", async (HttpContext ctx) =>
-
-{
-    // create a list of claims
-    var claims = new List<Claim>();
-
-    // Add the claim to the list
-    claims.Add(new Claim("user", "abir"));
-    // add the role
-    claims.Add(new Claim("role", "Admin"));
-    // Create a ClaimsIdentity and add it to the HttpContext.User
-    var identity = new ClaimsIdentity(claims, "cookie-auth");
-    // Add the ClaimsPrincipal to the HttpContext
-    var user = new ClaimsPrincipal(identity);
-    // creating an authentication session
-    await ctx.SignInAsync("cookie-auth", user);
-
-    return "Login Page";
-});
-
-
-app.MapGet("/profile", (HttpContext ctx) =>
-{       
-    // recognizing the authentication session
-    var username = ctx.User?.FindFirst("user")?.Value ?? "Anonymous";
-    var role = ctx.User?.FindFirst("role")?.Value ?? "User";
-    return $"Welcome {username} you are a {role}";
+app.MapGet("/master", async (HttpContext ctx) =>
+{   
+    var result = await ctx.AuthenticateAsync(auth_scheme2);
     
+    if (!result.Succeeded)
+    {   
+        ctx.Response.StatusCode = 401;
+        return "Unauthorized";
+    }
+    
+    if (!result.Principal.IsInRole("master"))
+    {
+        ctx.Response.StatusCode = 403;
+        return "Forbidden";
+    }
+    
+    return "Master Page";
 });
+
+app.MapGet("/logout", async (HttpContext ctx) =>
+{
+    await ctx.SignOutAsync(auth_scheme1);
+    await ctx.SignOutAsync(auth_scheme2);
+    return "Logged out";
+});
+
 app.Run();
