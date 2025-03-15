@@ -1,28 +1,43 @@
-using Auth.middlewares;
-using Auth.services;
+
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
+
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddDataProtection();
+// Add the authentication services 
+// provide the authentication scheme name
+// and the cookie name
+// this is provided by Microsoft.AspNetCore.Authentication.Cookies
+builder.Services.AddAuthentication("cookie-auth")
+    .AddCookie("cookie-auth", options =>
+    {
+        options.Cookie.Name = "auth";
+    });
 
-// adding the custom service to the DI container
-// When we create a custom services and need to access the HttpContext,
-// we need to inject IHttpContextAccessor to access the HttpContext.    
-builder.Services.AddHttpContextAccessor();
-
-// adding the AuthService to the DI container
-// AuthService requires IDataProtectionProvider and IHttpContextAccessor
-builder.Services.AddScoped<AuthService>();
 
 var app = builder.Build();
 
-// Add the middleware to the pipeline
-app.UseMiddleware<AuthMiddleware>();
+// Add the authentication middleware
+// this middleware will recognize the authentication session
+// and populate the HttpContext.User property
+// provided by Microsoft.AspNetCore.Authentication
+app.UseAuthentication();
 
-app.MapGet("/login", (AuthService auth) =>
+app.MapGet("/login", async (HttpContext ctx) =>
 
 {
+    // create a list of claims
+    var claims = new List<Claim>();
+
+    // Add the claim to the list
+    claims.Add(new Claim("user", "abir"));
+
+    // Create a ClaimsIdentity and add it to the HttpContext.User
+    var identity = new ClaimsIdentity(claims, "cookie-auth");
+    // Add the ClaimsPrincipal to the HttpContext
+    var user = new ClaimsPrincipal(identity);
     // creating an authentication session
-    auth.SignIn();
+    await ctx.SignInAsync("cookie-auth", user);
 
     return "Login Page";
 });
