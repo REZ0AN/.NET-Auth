@@ -1,25 +1,26 @@
+using Auth.services;
 using Microsoft.AspNetCore.DataProtection;
-
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDataProtection();
 
+// adding the custom service to the DI container
+// When we create a custom services and need to access the HttpContext,
+// we need to inject IHttpContextAccessor to access the HttpContext.    
+builder.Services.AddHttpContextAccessor();
+
+// adding the AuthService to the DI container
+// AuthService requires IDataProtectionProvider and IHttpContextAccessor
+builder.Services.AddScoped<AuthService>();
+
 var app = builder.Build();
 
 
-app.MapGet("/login", (HttpContext ctx, IDataProtectionProvider idp) =>
+app.MapGet("/login", (AuthService auth) =>
+
 {
     // creating an authentication session
-    // create protector <name> - auth (scenario/usecase)
-    var protector = idp.CreateProtector("auth");
-    
-    // the string to protect
-    var payload = "user:abir";
-
-    // create protected payload
-    var protectedPayload = protector.Protect(payload);
-
-    ctx.Response.Headers["set-cookie"]= $"auth={protectedPayload}";
+    auth.SignIn();
 
     return "Login Page";
 });
