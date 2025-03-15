@@ -30,3 +30,4 @@
 /Users/rezoanahmedabir/Developer/DOT_NET/Auth/obj/Debug/net9.0/Auth.pdb
 /Users/rezoanahmedabir/Developer/DOT_NET/Auth/obj/Debug/net9.0/Auth.genruntimeconfig.cache
 /Users/rezoanahmedabir/Developer/DOT_NET/Auth/obj/Debug/net9.0/ref/Auth.dll
+/Users/rezoanahmedabir/Developer/DOT_NET/Auth/obj/Debug/net9.0/Auth.sourcelink.json
